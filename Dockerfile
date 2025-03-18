@@ -1,4 +1,4 @@
-FROM golang:1.22 AS go-builder
+FROM golang:1.24 AS go-builder
 
 # Set working directory for Go build
 WORKDIR /app
@@ -37,6 +37,9 @@ RUN mkdir -p /rmd/output
 # Create app directory and copy Go binary from builder stage
 RUN mkdir -p /app
 COPY --from=go-builder /app/r-server /app/
+
+# Expose the port that the server listens on
+EXPOSE 22011
 
 # Run the Go application
 ENTRYPOINT ["/app/r-server"]
