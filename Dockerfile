@@ -11,7 +11,7 @@ RUN go mod download
 
 # Copy the source code
 COPY *.go ./
-COPY rmd/ ./rmd/
+COPY *.mod ./
 
 # Build the application
 RUN go build -o r-server
@@ -33,10 +33,6 @@ WORKDIR /rmd
 
 # Create output directory
 RUN mkdir -p /rmd/output
-
-# Copy entrypoint script
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create app directory and copy Go binary from builder stage
 RUN mkdir -p /app
