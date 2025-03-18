@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+  # R Markdown rendering service
+  r-server-rmd:
+    build: .
+    image: r-server-rmd
+    volumes:
+      - ${RMD_DIR:-./rmd}:/rmd
+    command: ${RENDER_COMMAND:-render} ${INPUT_FILE:-/rmd/sample.Rmd}
+    environment:
+      - OUTPUT_FORMAT=${OUTPUT_FORMAT:-html}
+  
+  # MCP server service
+  r-server-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    image: r-server-mcp
+    volumes:
+      # Mount the rmd directory to allow the MCP server to access R Markdown files
+      - ${RMD_DIR:-./rmd}:/app/rmd
+      # Mount Docker socket to allow the MCP server to use Docker for rendering
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Keep the container running in the background
+    tty: true
+    stdin_open: true
+    command: tail -f /dev/null
+    # Uncomment if you need to expose ports
+    # ports:
+    #   - "8080:8080"
