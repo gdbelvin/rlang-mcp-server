@@ -8,11 +8,5 @@ services:
     volumes:
       # Mount the rmd directory to allow the MCP server to access R Markdown files
       - ${RMD_DIR:-./rmd}:/app/rmd
-    # Keep the container running in the background
-    tty: true
-    stdin_open: true
-    # Use the entrypoint defined in the Dockerfile
-    # The entrypoint is already set to /app/r-server
-    # Expose the port that the server listens on
     ports:
       - "22011:22011"

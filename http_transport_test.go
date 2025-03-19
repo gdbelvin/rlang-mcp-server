@@ -110,7 +110,7 @@ This is a test R Markdown file.
 	serverTransport.WithAddr(serverAddr)
 	
 	// Create a new MCP server with the transport
-	server, err := CreateMCPServerWithTransport(serverTransport)
+	server, err := NewMCPServerWithTransport(serverTransport)
 	require.NoError(t, err, "Failed to create MCP server")
 	
 	// Register a test resource for the test

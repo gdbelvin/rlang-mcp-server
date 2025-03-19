@@ -14,9 +14,13 @@ cat << EOF
   "mcpServers": {
     "r-server": {
       "command": "docker-compose",
-      "args": ["-f", "/Users/gdb/dev/r-server/docker-compose.yml", "up", "-d"],
+      "args": ["-f", "/Users/gdb/dev/r-server/docker-compose.yml", "up", "-d"]
       "disabled": false,
-      "autoApprove": []
+      "autoApprove": [],
+      "transport": {
+        "type": "http",
+        "url": "http://localhost:22011/mcp"
+      }
     }
   }
 }

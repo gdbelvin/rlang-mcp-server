@@ -4,251 +4,118 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	mcp "github.com/metoro-io/mcp-golang"
+	"github.com/metoro-io/mcp-golang/transport"
+	"github.com/metoro-io/mcp-golang/transport/http"
 )
 
 // MCPServer represents the MCP server for R Markdown
 type MCPServer struct {
-	// Note: This is a simplified implementation for demonstration purposes.
-	// In a real implementation with a Go MCP SDK, this would include the MCP SDK server instance
-	// For example:
-	// mcpServer *mcp.Server
+	*mcp.Server
 }
 
-// NewMCPServer creates a new MCP server instance
-func NewMCPServer() *MCPServer {
-	return &MCPServer{}
+type Content struct {
+	Title       string  `json:"title" jsonschema:"required,description=The title to submit"`
+	Description *string `json:"description" jsonschema:"description=The description to submit"`
+}
+type MyFunctionsArguments struct {
+	Submitter string  `json:"submitter" jsonschema:"required,description=The name of the thing calling this tool (openai, google, claude, etc)"`
+	Content   Content `json:"content" jsonschema:"required,description=The content of the message"`
 }
 
-// ListResources lists available R Markdown files as resources
-func (s *MCPServer) ListResources() ([]map[string]string, error) {
-	var resources []map[string]string
+// CreateMCPServerWithTransport creates a new MCP server with the given transport and registers all tools and resources
+func NewMCPServerWithTransport(transport transport.Transport) (*MCPServer, error) {
+	// Create a new MCP server
+	server := &MCPServer{
+		Server: mcp.NewServer(transport),
+	}
 
-	// Get R Markdown files
-	rmdFiles, err := GetRMarkdownFiles(RMD_DIR)
+	err := server.RegisterTool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (*mcp.ToolResponse, error) {
+		return mcp.NewToolResponse(mcp.NewTextContent(fmt.Sprintf("Hello, %server!", arguments.Submitter))), nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get R Markdown files: %w", err)
+		panic(err)
 	}
 
-	// Add R Markdown files as resources
-	for _, file := range rmdFiles {
-		resources = append(resources, map[string]string{
-			"uri":         fmt.Sprintf("rmd:///%s", file.Filename),
-			"mimeType":    "text/markdown",
-			"name":        file.Title,
-			"description": fmt.Sprintf("R Markdown file: %s", file.Title),
-		})
-	}
-
-	// Add rendered output files as resources
-	files, err := os.ReadDir(OUTPUT_DIR)
+	err = server.RegisterPrompt("promt_test", "This is a test prompt", func(arguments Content) (*mcp.PromptResponse, error) {
+		return mcp.NewPromptResponse("description", mcp.NewPromptMessage(mcp.NewTextContent(fmt.Sprintf("Hello, %server!", arguments.Title)), mcp.RoleUser)), nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to read output directory: %w", err)
+		panic(err)
 	}
 
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		filename := file.Name()
-		ext := filepath.Ext(filename)
-		if ext != ".html" && ext != ".pdf" && ext != ".docx" {
-			continue
-		}
-
-		resources = append(resources, map[string]string{
-			"uri":         fmt.Sprintf("rmd-output:///%s", filename),
-			"mimeType":    GetMimeType(filename),
-			"name":        fmt.Sprintf("Rendered: %s", filename),
-			"description": fmt.Sprintf("Rendered output: %s", filename),
-		})
+	// Register the create_rmd tool
+	if err := server.RegisterTool("create_rmd", "Create a new R Markdown file", CreateMarkdownFile); err != nil {
+		return nil, fmt.Errorf("failed to register create_rmd tool: %w", err)
 	}
 
-	return resources, nil
+	// Register the render_rmd tool
+	if err := server.RegisterTool("render_rmd", "Render an R Markdown file", RenderMarkdownFile); err != nil {
+		return nil, fmt.Errorf("failed to register render_rmd tool: %w", err)
+	}
+
+	return server, nil
 }
 
-// ReadResource reads an R Markdown file or rendered output
-func (s *MCPServer) ReadResource(uri string) (string, string, error) {
-	// Parse URI
-	scheme := ""
-	path := ""
+// StartMCPServerWithHttp starts the MCP server with HTTP transport using the metoro-io/mcp-golang library
+func StartMCPServerWithHttp(httpAddr string) error {
+	// Create an HTTP transport
+	transport := http.NewHTTPTransport("/mcp").WithAddr(httpAddr)
 
-	// Simple URI parsing (in a real implementation, use url.Parse)
-	if len(uri) > 6 && uri[:6] == "rmd://" {
-		scheme = "rmd"
-		path = uri[6:]
-	} else if len(uri) > 13 && uri[:13] == "rmd-output://" {
-		scheme = "rmd-output"
-		path = uri[13:]
-	} else {
-		return "", "", fmt.Errorf("unsupported URI scheme: %s", uri)
+	// Create and configure the server
+	server, err := NewMCPServerWithTransport(transport)
+	if err != nil {
+		return fmt.Errorf("failed to create MCP server: %w", err)
 	}
 
-	// Remove leading slashes
-	for len(path) > 0 && path[0] == '/' {
-		path = path[1:]
-	}
-
-	if scheme == "rmd" {
-		// Reading an R Markdown file
-		filePath := filepath.Join(RMD_DIR, path)
-
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			return "", "", fmt.Errorf("R Markdown file not found: %s", path)
-		}
-
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to read R Markdown file: %w", err)
-		}
-
-		return string(content), "text/markdown", nil
-	} else if scheme == "rmd-output" {
-		// Reading a rendered output file
-		filePath := filepath.Join(OUTPUT_DIR, path)
-
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			return "", "", fmt.Errorf("rendered output file not found: %s", path)
-		}
-
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to read rendered output file: %w", err)
-		}
-
-		return string(content), GetMimeType(path), nil
-	}
-
-	return "", "", fmt.Errorf("unsupported URI scheme: %s", scheme)
+	// Start the server
+	fmt.Printf("Starting MCP server with HTTP transport on %s\n", httpAddr)
+	return server.Serve()
 }
 
-// ListTools lists available tools for R Markdown
-func (s *MCPServer) ListTools() []map[string]interface{} {
-	return []map[string]interface{}{
-		{
-			"name":        "create_rmd",
-			"description": "Create a new R Markdown file",
-			"inputSchema": map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"filename": map[string]interface{}{
-						"type":        "string",
-						"description": "Filename for the R Markdown file (without extension)",
-					},
-					"title": map[string]interface{}{
-						"type":        "string",
-						"description": "Title for the R Markdown document",
-					},
-					"content": map[string]interface{}{
-						"type":        "string",
-						"description": "Content of the R Markdown file",
-					},
-				},
-				"required": []string{"filename", "title", "content"},
-			},
-		},
-		{
-			"name":        "render_rmd",
-			"description": "Render an R Markdown file",
-			"inputSchema": map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"filename": map[string]interface{}{
-						"type":        "string",
-						"description": "Filename of the R Markdown file to render",
-					},
-					"format": map[string]interface{}{
-						"type":        "string",
-						"enum":        []string{"html", "pdf", "word"},
-						"description": "Output format (html, pdf, or word)",
-						"default":     "html",
-					},
-					"use_docker_compose": map[string]interface{}{
-						"type":        "boolean",
-						"description": "Whether to use docker-compose (true) or Dockerode (false)",
-						"default":     false,
-					},
-				},
-				"required": []string{"filename"},
-			},
-		},
+func CreateMarkdownFile(args RMarkdownCreateArgs) (*mcp.ToolResponse, error) {
+	// Ensure filename has .Rmd extension
+	fullFilename := EnsureRmdExtension(args.Filename)
+	filePath := filepath.Join(RMD_DIR, fullFilename)
+
+	// Create YAML front matter if not present
+	finalContent := CreateRmdFrontMatter(args.Title, args.Content)
+
+	// Write the file
+	if err := os.WriteFile(filePath, []byte(finalContent), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write R Markdown file: %w", err)
 	}
+
+	return mcp.NewToolResponse(mcp.NewTextContent(fmt.Sprintf("Created R Markdown file: %s", fullFilename))), nil
 }
 
-// CallTool calls an R Markdown tool
-func (s *MCPServer) CallTool(name string, args map[string]interface{}) (string, error) {
-	switch name {
-	case "create_rmd":
-		// Extract arguments
-		filename, ok := args["filename"].(string)
-		if !ok || filename == "" {
-			return "", fmt.Errorf("filename is required")
-		}
+func RenderMarkdownFile(args RMarkdownRenderArgs) (*mcp.ToolResponse, error) {
+	// Ensure filename has .Rmd extension
+	fullFilename := EnsureRmdExtension(args.Filename)
+	filePath := filepath.Join(RMD_DIR, fullFilename)
 
-		title, ok := args["title"].(string)
-		if !ok || title == "" {
-			return "", fmt.Errorf("title is required")
-		}
-
-		content, ok := args["content"].(string)
-		if !ok || content == "" {
-			return "", fmt.Errorf("content is required")
-		}
-
-		// Ensure filename has .Rmd extension
-		fullFilename := EnsureRmdExtension(filename)
-		filePath := filepath.Join(RMD_DIR, fullFilename)
-
-		// Create YAML front matter if not present
-		finalContent := CreateRmdFrontMatter(title, content)
-
-		// Write the file
-		if err := os.WriteFile(filePath, []byte(finalContent), 0644); err != nil {
-			return "", fmt.Errorf("failed to write R Markdown file: %w", err)
-		}
-
-		return fmt.Sprintf("Created R Markdown file: %s", fullFilename), nil
-
-	case "render_rmd":
-		// Extract arguments
-		filename, ok := args["filename"].(string)
-		if !ok || filename == "" {
-			return "", fmt.Errorf("filename is required")
-		}
-
-		format := "html"
-		if f, ok := args["format"].(string); ok && (f == "html" || f == "pdf" || f == "word") {
-			format = f
-		}
-
-		useDockerCompose := false
-		if udc, ok := args["use_docker_compose"].(bool); ok {
-			useDockerCompose = udc
-		}
-
-		// Ensure filename has .Rmd extension
-		fullFilename := EnsureRmdExtension(filename)
-		filePath := filepath.Join(RMD_DIR, fullFilename)
-
-		// Check if file exists
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			return "", fmt.Errorf("R Markdown file not found: %s", fullFilename)
-		}
-
-		// Build Docker image
-		if err := BuildDockerImage(); err != nil {
-			return "", fmt.Errorf("failed to build Docker image: %w", err)
-		}
-
-		// Render the R Markdown file
-		outputFile, err := RenderRMarkdown(fullFilename, format, useDockerCompose)
-		if err != nil {
-			return "", fmt.Errorf("failed to render R Markdown file: %w", err)
-		}
-
-		return fmt.Sprintf("Successfully rendered %s to %s", fullFilename, outputFile), nil
-
-	default:
-		return "", fmt.Errorf("unknown tool: %s", name)
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("R Markdown file not found: %s", fullFilename)
 	}
+
+	// Build Docker image
+	if err := BuildDockerImage(); err != nil {
+		return nil, fmt.Errorf("failed to build Docker image: %w", err)
+	}
+
+	// Set default format if not provided
+	format := args.Format
+	if format == "" {
+		format = "html"
+	}
+
+	// Render the R Markdown file
+	outputFile, err := RenderRMarkdown(fullFilename, format, args.UseDockerCompose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render R Markdown file: %w", err)
+	}
+
+	return mcp.NewToolResponse(mcp.NewTextContent(fmt.Sprintf("Successfully rendered %s to %s", fullFilename, outputFile))), nil
 }

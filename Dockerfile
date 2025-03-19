@@ -6,14 +6,10 @@ WORKDIR /app
 # Copy go.mod and go.sum files first to leverage Docker cache
 COPY go.mod go.sum ./
 
-# Download dependencies
-RUN go mod download
-
 # Copy the source code
 COPY *.go ./
-COPY *.mod ./
 
-# Build the application
+# Build the application (using local module cache)
 RUN go build -o r-server
 
 # Final image with R and the Go binary
@@ -42,4 +38,4 @@ COPY --from=go-builder /app/r-server /app/
 EXPOSE 22011
 
 # Run the Go application
-ENTRYPOINT ["/app/r-server"]
+ENTRYPOINT ["/app/r-server", "--port", "22011"]

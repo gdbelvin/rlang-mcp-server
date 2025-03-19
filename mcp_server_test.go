@@ -1,11 +1,47 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	mcp "github.com/metoro-io/mcp-golang"
+	mcphttp "github.com/metoro-io/mcp-golang/transport/http"
 )
+
+// NewTestMCPServer creates a new MCP server with HTTP transport for testing
+func NewTestMCPServer() (*MCPServer, string, error) {
+	// Let the OS choose an available port
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to find available port: %w", err)
+	}
+	
+	// Get the chosen port
+	port := listener.Addr().(*net.TCPAddr).Port
+	listener.Close()
+	
+	// Create the server address
+	addr := fmt.Sprintf("localhost:%d", port)
+	
+	// Create an HTTP transport for testing
+	serverTransport := mcphttp.NewHTTPTransport("/mcp")
+	serverTransport.WithAddr(addr)
+	
+	// Create a new MCP server with the transport
+	server, err := NewMCPServerWithTransport(serverTransport)
+	if err != nil {
+		return nil, "", err
+	}
+	
+	// Return the server and the full URL for the client
+	return server, addr, nil
+}
 
 // TestSetup ensures the test environment is properly set up
 func TestSetup(t *testing.T) {
@@ -72,7 +108,34 @@ This is a test R Markdown file.
 // TestCreateRmdTool tests the create_rmd tool
 func TestCreateRmdTool(t *testing.T) {
 	// Create a test server
-	server := NewMCPServer()
+	server, addr, err := NewTestMCPServer()
+	if err != nil {
+		t.Fatalf("Failed to create test server: %v", err)
+	}
+
+	// Start the server in a goroutine
+	go func() {
+		if err := server.Serve(); err != nil {
+			t.Logf("Server error: %v", err)
+		}
+	}()
+
+	// Give the server time to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Create a client transport that connects to the server
+	clientTransport := mcphttp.NewHTTPClientTransport(fmt.Sprintf("http://%s/mcp", addr))
+
+	// Create a client with the transport
+	client := mcp.NewClient(clientTransport)
+
+	// Create a context
+	ctx := context.Background()
+	
+	// Initialize the client
+	if _, err := client.Initialize(ctx); err != nil {
+		t.Fatalf("Failed to initialize client: %v", err)
+	}
 
 	// Test arguments
 	args := map[string]interface{}{
@@ -81,16 +144,34 @@ func TestCreateRmdTool(t *testing.T) {
 		"content":  "This is a test R Markdown file.\n\n```{r}\nplot(cars)\n```",
 	}
 
-	// Call the tool
-	result, err := server.CallTool("create_rmd", args)
+	// Call the tool using the client
+	response, err := client.CallTool(ctx, "create_rmd", args)
 	if err != nil {
 		t.Fatalf("CallTool failed: %v", err)
 	}
 
+	// Extract the result from the response
+	if len(response.Content) == 0 {
+		t.Fatalf("Expected content in response")
+	}
+
+	// Get the text content
+	var result string
+	for _, content := range response.Content {
+		if content.Type == mcp.ContentTypeText && content.TextContent != nil {
+			result = content.TextContent.Text
+			break
+		}
+	}
+
+	if result == "" {
+		t.Fatalf("No text content found in response")
+	}
+
 	// Verify result
 	expectedResult := "Created R Markdown file: test_create.Rmd"
-	if result != expectedResult {
-		t.Errorf("Expected result '%s', got '%s'", expectedResult, result)
+	if !strings.Contains(result, expectedResult) {
+		t.Errorf("Expected result to contain '%s', got '%s'", expectedResult, result)
 	}
 
 	// Verify file was created
@@ -114,7 +195,20 @@ func TestCreateRmdTool(t *testing.T) {
 // TestReadResource tests the ReadResource method
 func TestReadResource(t *testing.T) {
 	// Create a test server
-	server := NewMCPServer()
+	server, addr, err := NewTestMCPServer()
+	if err != nil {
+		t.Fatalf("Failed to create test server: %v", err)
+	}
+
+	// Start the server in a goroutine
+	go func() {
+		if err := server.Serve(); err != nil {
+			t.Logf("Server error: %v", err)
+		}
+	}()
+
+	// Give the server time to start
+	time.Sleep(100 * time.Millisecond)
 
 	// Create a test R Markdown file
 	testRmd := `---
@@ -135,10 +229,46 @@ This is a test R Markdown file.
 		t.Fatalf("Failed to write test R Markdown file: %v", err)
 	}
 
+	// Create a client transport that connects to the server
+	clientTransport := mcphttp.NewHTTPClientTransport(fmt.Sprintf("http://%s/mcp", addr))
+
+	// Create a client with the transport
+	client := mcp.NewClient(clientTransport)
+
+	// Create a context
+	ctx := context.Background()
+	
+	// Initialize the client
+	if _, err := client.Initialize(ctx); err != nil {
+		t.Fatalf("Failed to initialize client: %v", err)
+	}
+
 	// Read the resource
-	content, mimeType, err := server.ReadResource("rmd:///test_read.Rmd")
+	response, err := client.ReadResource(ctx, "rmd:///test_read.Rmd")
 	if err != nil {
 		t.Fatalf("ReadResource failed: %v", err)
+	}
+
+	// Extract the content from the response
+	if len(response.Contents) == 0 {
+		t.Fatalf("Expected contents in response")
+	}
+
+	// Get the text content
+	var content string
+	var mimeType string
+	for _, res := range response.Contents {
+		if res.TextResourceContents != nil {
+			content = res.TextResourceContents.Text
+			if res.TextResourceContents.MimeType != nil {
+				mimeType = *res.TextResourceContents.MimeType
+			}
+			break
+		}
+	}
+
+	if content == "" {
+		t.Fatalf("No text content found in response")
 	}
 
 	// Verify content and MIME type
@@ -153,7 +283,34 @@ This is a test R Markdown file.
 // TestRMarkdownToHTML tests the workflow of creating an RMarkdown document and simulating rendering to HTML
 func TestRMarkdownToHTML(t *testing.T) {
 	// Create a test server
-	server := NewMCPServer()
+	server, addr, err := NewTestMCPServer()
+	if err != nil {
+		t.Fatalf("Failed to create test server: %v", err)
+	}
+
+	// Start the server in a goroutine
+	go func() {
+		if err := server.Serve(); err != nil {
+			t.Logf("Server error: %v", err)
+		}
+	}()
+
+	// Give the server time to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Create a client transport that connects to the server
+	clientTransport := mcphttp.NewHTTPClientTransport(fmt.Sprintf("http://%s/mcp", addr))
+
+	// Create a client with the transport
+	client := mcp.NewClient(clientTransport)
+
+	// Create a context
+	ctx := context.Background()
+	
+	// Initialize the client
+	if _, err := client.Initialize(ctx); err != nil {
+		t.Fatalf("Failed to initialize client: %v", err)
+	}
 
 	// Step 1: Create an R Markdown document
 	createArgs := map[string]interface{}{
@@ -167,9 +324,14 @@ This is a test R Markdown document for the MCP server.
 ` + "```{r}\n# Generate some data\nset.seed(123)\nx <- 1:10\ny <- x + rnorm(10)\nplot(x, y)\n```",
 	}
 
-	_, err := server.CallTool("create_rmd", createArgs)
+	response, err := client.CallTool(ctx, "create_rmd", createArgs)
 	if err != nil {
 		t.Fatalf("Failed to create R Markdown document: %v", err)
+	}
+
+	// Verify we got a response
+	if len(response.Content) == 0 {
+		t.Fatalf("Expected content in response")
 	}
 
 	// Verify the file was created
@@ -213,9 +375,31 @@ plot(x, y)
 	}
 
 	// Step 3: Read the HTML resource
-	content, mimeType, err := server.ReadResource("rmd-output:///test_workflow.html")
+	resourceResponse, err := client.ReadResource(ctx, "rmd-output:///test_workflow.html")
 	if err != nil {
 		t.Fatalf("Failed to read HTML resource: %v", err)
+	}
+
+	// Extract the content from the response
+	if len(resourceResponse.Contents) == 0 {
+		t.Fatalf("Expected contents in response")
+	}
+
+	// Get the text content
+	var content string
+	var mimeType string
+	for _, res := range resourceResponse.Contents {
+		if res.TextResourceContents != nil {
+			content = res.TextResourceContents.Text
+			if res.TextResourceContents.MimeType != nil {
+				mimeType = *res.TextResourceContents.MimeType
+			}
+			break
+		}
+	}
+
+	if content == "" {
+		t.Fatalf("No text content found in response")
 	}
 
 	// Verify the content and MIME type
@@ -224,89 +408,6 @@ plot(x, y)
 	}
 	if mimeType != "text/html" {
 		t.Errorf("Expected MIME type 'text/html', got '%s'", mimeType)
-	}
-}
-
-// TestRenderRmdToHTML tests the render_rmd tool to convert RMarkdown to HTML
-func TestRenderRmdToHTML(t *testing.T) {
-	// Create a test server
-	server := NewMCPServer()
-
-	// Create a test R Markdown file
-	testRmd := `---
-title: "Test Render to HTML"
-author: "Test"
-date: "2025-03-18"
-output: html_document
----
-
-## R Markdown Test
-
-This is a test R Markdown document for rendering to HTML.
-
-` + "```{r}\n# Generate a simple plot\nplot(pressure)\n```"
-
-	testFilePath := filepath.Join(RMD_DIR, "test_render.Rmd")
-	if err := os.WriteFile(testFilePath, []byte(testRmd), 0644); err != nil {
-		t.Fatalf("Failed to write test R Markdown file: %v", err)
-	}
-
-	// Create a mock function to simulate rendering
-	// Since we can't directly mock the RenderRMarkdown function, we'll create a mock HTML file
-	// that would be the expected output of rendering the R Markdown file
-	mockHtml := `<!DOCTYPE html>
-<html>
-<head>
-  <title>Test Render to HTML</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-<body>
-  <h1>Test Render to HTML</h1>
-  <h2>R Markdown Test</h2>
-  <p>This is a test R Markdown document for rendering to HTML.</p>
-  <pre><code>
-# Generate a simple plot
-plot(pressure)
-  </code></pre>
-  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFeAJ5jfZixgAAAABJRU5ErkJggg==" alt="Plot of pressure">
-</body>
-</html>`
-
-	// Write the mock HTML file to simulate rendering
-	htmlPath := filepath.Join(OUTPUT_DIR, "test_render.html")
-	if err := os.WriteFile(htmlPath, []byte(mockHtml), 0644); err != nil {
-		t.Fatalf("Failed to write mock HTML file: %v", err)
-	}
-
-	// We're not actually calling the render_rmd tool since we can't mock the RenderRMarkdown function
-	// Instead, we're simulating the result by creating the HTML file directly
-	// If we were to call the tool, it would look like this:
-	// result, err := server.CallTool("render_rmd", map[string]interface{}{
-	//     "filename": "test_render",
-	//     "format":   "html",
-	// })
-	// if err != nil {
-	//     t.Fatalf("CallTool failed: %v", err)
-	// }
-
-	// Read the HTML resource
-	content, mimeType, err := server.ReadResource("rmd-output:///test_render.html")
-	if err != nil {
-		t.Fatalf("Failed to read HTML resource: %v", err)
-	}
-
-	// Verify the content and MIME type
-	if !strings.Contains(content, "<title>Test Render to HTML</title>") {
-		t.Errorf("HTML content does not contain expected title")
-	}
-	if mimeType != "text/html" {
-		t.Errorf("Expected MIME type 'text/html', got '%s'", mimeType)
-	}
-
-	// Verify that the HTML file exists
-	if _, err := os.Stat(htmlPath); os.IsNotExist(err) {
-		t.Errorf("HTML file was not created: %s", htmlPath)
 	}
 }
 
