@@ -1,0 +1,134 @@
+version: '3'
+
+vars:
+  BINARY_NAME: r-server
+  DOCKER_IMAGE: r-server-ggplot
+  COVERAGE_FILE: coverage.out
+  COVERAGE_HTML: coverage.html
+  GO_FILES:
+    sh: find . -type f -name "*.go" | grep -v "_test.go$"
+
+tasks:
+  default:
+    desc: List all available tasks
+    cmds:
+      - task --list
+
+  build:
+    desc: Build the MCP server binary
+    cmds:
+      - echo "Building {{.BINARY_NAME}}..."
+      - go build -o {{.BINARY_NAME}} ./cmd/r-server
+    sources:
+      - "{{.GO_FILES}}"
+    generates:
+      - "{{.BINARY_NAME}}"
+
+  run:
+    desc: Run the MCP server
+    deps: [build]
+    cmds:
+      - ./{{.BINARY_NAME}}
+
+  test:
+    desc: Run all tests
+    cmds:
+      - echo "Running tests..."
+      - go test -v ./...
+
+  test:unit:
+    desc: Run unit tests
+    cmds:
+      - echo "Running unit tests..."
+      - go test -v -short ./...
+
+  test:integration:
+    desc: Run integration tests
+    cmds:
+      - echo "Running integration tests..."
+      - go test -v -tags=integration ./...
+
+  test:protocol:
+    desc: Run MCP protocol conformance tests
+    cmds:
+      - echo "Running MCP protocol tests..."
+      - go test -v -tags=protocol ./...
+
+  coverage:
+    desc: Generate test coverage report
+    cmds:
+      - echo "Generating test coverage..."
+      - go test -coverprofile={{.COVERAGE_FILE}} ./...
+      - go tool cover -html={{.COVERAGE_FILE}} -o {{.COVERAGE_HTML}}
+      - echo "Coverage report generated at {{.COVERAGE_HTML}}"
+    generates:
+      - "{{.COVERAGE_FILE}}"
+      - "{{.COVERAGE_HTML}}"
+
+  lint:
+    desc: Lint the code
+    cmds:
+      - echo "Linting code..."
+      - golangci-lint run
+
+  docker:build:
+    desc: Build Docker image
+    cmds:
+      - echo "Building Docker image {{.DOCKER_IMAGE}}..."
+      - docker build -t {{.DOCKER_IMAGE}} .
+
+  docker:run:
+    desc: Run the server in Docker
+    deps: [docker:build]
+    cmds:
+      - echo "Running Docker container..."
+      - docker run -p 22011:22011 {{.DOCKER_IMAGE}}
+
+  clean:
+    desc: Clean up build artifacts
+    cmds:
+      - echo "Cleaning up..."
+      - rm -f {{.BINARY_NAME}} {{.COVERAGE_FILE}} {{.COVERAGE_HTML}}
+      - rm -rf ./test/testdata/output/*
+
+  ci:
+    desc: Run the full CI pipeline
+    cmds:
+      - task: lint
+      - task: test
+      - task: coverage
+      - task: docker:build
+
+  # MCP-specific tasks
+  mcp:test-tool:
+    desc: Test the render_ggplot tool with a sample plot
+    deps: [build]
+    cmds:
+      - echo "Testing render_ggplot tool..."
+      - |
+        cat > test_ggplot.json << 'EOF'
+        {
+          "name": "render_ggplot",
+          "arguments": {
+            "code": "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + theme_minimal() + labs(title = 'MPG vs Horsepower')",
+            "output_type": "png",
+            "width": 800,
+            "height": 600,
+            "resolution": 96
+          }
+        }
+        EOF
+      - ./{{.BINARY_NAME}} --test-tool test_ggplot.json
+      - rm test_ggplot.json
+
+  mcp:validate:
+    desc: Validate MCP protocol conformance
+    cmds:
+      - echo "Validating MCP protocol conformance..."
+      - go run ./tools/mcp-validator
+
+  benchmark:
+    desc: Run benchmarks
+    cmds:
+      - echo "Running benchmarks..."
+      - go test -bench=. -benchmem ./...

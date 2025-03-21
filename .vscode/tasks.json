@@ -1,0 +1,103 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "task",
+      "taskName": "default",
+      "label": "Task: List All Tasks",
+      "problemMatcher": []
+    },
+    {
+      "type": "task",
+      "taskName": "build",
+      "label": "Build MCP Server",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$go"]
+    },
+    {
+      "type": "task",
+      "taskName": "run",
+      "label": "Run MCP Server",
+      "problemMatcher": []
+    },
+    {
+      "type": "task",
+      "taskName": "test",
+      "label": "Run Tests",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": ["$go-test"]
+    },
+    {
+      "type": "task",
+      "taskName": "test:protocol",
+      "label": "Run Protocol Tests",
+      "problemMatcher": ["$go-test"]
+    },
+    {
+      "type": "task",
+      "taskName": "test:integration",
+      "label": "Run Integration Tests",
+      "problemMatcher": ["$go-test"]
+    },
+    {
+      "type": "task",
+      "taskName": "coverage",
+      "label": "Generate Coverage Report",
+      "problemMatcher": []
+    },
+    {
+      "type": "task",
+      "taskName": "lint",
+      "label": "Lint Code",
+      "problemMatcher": ["$go-vet"]
+    },
+    {
+      "type": "task",
+      "taskName": "docker:build",
+      "label": "Build Docker Image",
+      "problemMatcher": []
+    },
+    {
+      "type": "task",
+      "taskName": "docker:run",
+      "label": "Run in Docker",
+      "problemMatcher": []
+    },
+    {
+      "type": "task",
+      "taskName": "clean",
+      "label": "Clean Project",
+      "problemMatcher": []
+    },
+    {
+      "type": "task",
+      "taskName": "ci",
+      "label": "Run CI Pipeline",
+      "problemMatcher": ["$go", "$go-test", "$go-vet"]
+    },
+    {
+      "type": "task",
+      "taskName": "mcp:test-tool",
+      "label": "Test MCP Tool",
+      "problemMatcher": []
+    },
+    {
+      "type": "task",
+      "taskName": "mcp:validate",
+      "label": "Validate MCP Protocol",
+      "problemMatcher": []
+    },
+    {
+      "type": "task",
+      "taskName": "benchmark",
+      "label": "Run Benchmarks",
+      "problemMatcher": []
+    }
+  ]
+}
