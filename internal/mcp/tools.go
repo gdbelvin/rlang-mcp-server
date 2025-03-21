@@ -85,10 +85,27 @@ ggsave(output_file, width = width/dpi, height = height/dpi, dpi = dpi)
 		return nil, fmt.Errorf("failed to write R script: %w", err)
 	}
 
-	// For now, just return a text response
-	// In a real implementation, we would execute the R script and return the image
-	return mcp.NewToolResponse(mcp.NewTextContent(fmt.Sprintf(
-		"Would execute R script to generate %s image (%dx%d at %d dpi)",
-		outputType, width, height, resolution,
-	))), nil
+	// Execute the R script
+	config := RExecutionConfig{
+		ScriptPath:   scriptPath,
+		OutputPath:   outputPath,
+		OutputFormat: outputType,
+		Width:        width,
+		Height:       height,
+		Resolution:   resolution,
+	}
+
+	imageData, err := ExecuteRScript(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute R script: %w", err)
+	}
+
+	// Encode the image data to base64
+	base64Data := EncodeImageToBase64(imageData)
+
+	// Create the image content
+	mimeType := GetMimeType(outputType)
+	imageContent := mcp.NewImageContent(base64Data, mimeType)
+
+	return mcp.NewToolResponse(imageContent), nil
 }
