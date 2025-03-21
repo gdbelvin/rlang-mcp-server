@@ -1,41 +1,49 @@
-FROM golang:1.24 AS go-builder
+# Build stage
+FROM golang:1.24 AS build
 
-# Set working directory for Go build
+# Set working directory
 WORKDIR /app
 
-# Copy go.mod and go.sum files first to leverage Docker cache
+# Copy go.mod and go.sum files
 COPY go.mod go.sum ./
 
+# Download dependencies
+RUN go mod download
+
 # Copy the source code
-COPY *.go ./
+COPY . .
 
-# Build the application (using local module cache)
-RUN go build -o r-server
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -o r-server ./cmd/r-server
 
-# Final image with R and the Go binary
+# Final stage
 FROM rocker/r-ver:4.4.3
 
-# Install pandoc (required for R Markdown)
+# Install required system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    pandoc \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install R packages needed for R Markdown
-RUN R -e "install.packages(c('rmarkdown', 'knitr', 'tinytex'), repos='https://cran.rstudio.com/')"
+# Install required R packages
 RUN R -e "install.packages(c('ggplot2'), repos='https://cran.rstudio.com/')"
 
-# Create a working directory for R Markdown files
-WORKDIR /rmd
+# Create a non-root user
+RUN useradd -m -s /bin/bash -u 1000 rserver
 
-# Create output directory
-RUN mkdir -p /rmd/output
+# Create directories for the application
+RUN mkdir -p /app/output && chown -R rserver:rserver /app
 
-# Create app directory and copy Go binary from builder stage
-RUN mkdir -p /app
-COPY --from=go-builder /app/r-server /app/
+# Set working directory
+WORKDIR /app
 
-# Expose the port that the server listens on
+# Copy the binary from the build stage
+COPY --from=build --chown=rserver:rserver /app/r-server /app/
+
+# Switch to non-root user
+USER rserver
+
+# Expose the port
 EXPOSE 22011
 
-# Run the Go application
-ENTRYPOINT ["/app/r-server", "--port", "22011"]
+# Set the entrypoint
+ENTRYPOINT ["/app/r-server"]
