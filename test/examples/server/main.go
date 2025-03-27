@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -55,7 +54,7 @@ func main() {
 	}
 
 	// Start the server
-	log.Println("Starting server")
+	fmt.Fprintln(os.Stderr, "Starting server")
 	server.Serve()
-	log.Println("Stopping server")
+	fmt.Fprintln(os.Stderr, "Stopping server")
 }

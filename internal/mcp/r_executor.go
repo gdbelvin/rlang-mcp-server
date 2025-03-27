@@ -38,18 +38,18 @@ func (e *DefaultRExecutor) ExecuteRScript(config RExecutionConfig) ([]byte, erro
 	defer func() {
 		// Remove the script file
 		if err := os.Remove(config.ScriptPath); err != nil {
-			fmt.Printf("Warning: failed to remove script file: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Warning: failed to remove script file: %v\n", err)
 		}
 		
 		// Remove the output file
 		if err := os.Remove(config.OutputPath); err != nil {
-			fmt.Printf("Warning: failed to remove output file: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Warning: failed to remove output file: %v\n", err)
 		}
 		
 		// Remove the output directory if it's empty
 		if files, err := os.ReadDir(outputDir); err == nil && len(files) == 0 {
 			if err := os.Remove(outputDir); err != nil {
-				fmt.Printf("Warning: failed to remove output directory: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Warning: failed to remove output directory: %v\n", err)
 			}
 		}
 	}()

@@ -47,12 +47,12 @@ func TestTool(filePath string) error {
 	}
 
 	// Execute the tool
-	fmt.Printf("Testing tool: %s\n", request.Name)
-	fmt.Printf("Arguments: %v\n", request.Arguments)
+	fmt.Fprintf(os.Stderr, "Testing tool: %s\n", request.Name)
+	fmt.Fprintf(os.Stderr, "Arguments: %v\n", request.Arguments)
 
 	// For now, just print a message
 	// In a real implementation, we would execute the tool and display the result
-	fmt.Println("Tool test not yet implemented")
+	fmt.Fprintln(os.Stderr, "Tool test not yet implemented")
 
 	return nil
 }

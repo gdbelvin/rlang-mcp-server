@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -34,6 +33,7 @@ func main() {
 		os.Exit(0)
 	}
 
+	fmt.Fprintf(os.Stderr, "Starting client\n")
 	// Create a stdio transport using stdin/stdout
 	// When connected with named pipes, this will communicate with the server
 	transport := stdio.NewStdioServerTransport()
@@ -43,24 +43,26 @@ func main() {
 
 	// Initialize the client
 	if resp, err := client.Initialize(context.Background()); err != nil {
-		log.Fatalf("Failed to initialize client: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to initialize client: %v\n", err)
+		os.Exit(1)
 	} else {
-		log.Printf("Initialized client: %v", spew.Sdump(resp))
+		fmt.Fprintf(os.Stderr, "Initialized client: %v\n", spew.Sdump(resp))
 	}
 
 	// List available tools
 	tools, err := client.ListTools(context.Background(), nil)
 	if err != nil {
-		log.Fatalf("Failed to list tools: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to list tools: %v\n", err)
+		os.Exit(1)
 	}
 
-	log.Println("Available Tools:")
+	fmt.Fprintln(os.Stderr, "Available Tools:")
 	for _, tool := range tools.Tools {
 		desc := ""
 		if tool.Description != nil {
 			desc = *tool.Description
 		}
-		log.Printf("Tool: %s. Description: %s", tool.Name, desc)
+		fmt.Fprintf(os.Stderr, "Tool: %s. Description: %s\n", tool.Name, desc)
 	}
 
 	// Call the time tool with different formats
@@ -77,12 +79,12 @@ func main() {
 
 		response, err := client.CallTool(context.Background(), "time", args)
 		if err != nil {
-			log.Printf("Failed to call time tool: %v", err)
+			fmt.Fprintf(os.Stderr, "Failed to call time tool: %v\n", err)
 			continue
 		}
 
 		if len(response.Content) > 0 && response.Content[0].TextContent != nil {
-			log.Printf("Time in format %q: %s", format, response.Content[0].TextContent.Text)
+			fmt.Fprintf(os.Stderr, "Time in format %q: %s\n", format, response.Content[0].TextContent.Text)
 		}
 	}
 }
