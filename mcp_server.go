@@ -7,7 +7,7 @@ import (
 
 	mcp "github.com/metoro-io/mcp-golang"
 	"github.com/metoro-io/mcp-golang/transport"
-	"github.com/metoro-io/mcp-golang/transport/http"
+	"github.com/metoro-io/mcp-golang/transport/stdio"
 )
 
 // MCPServer represents the MCP server for R Markdown
@@ -58,10 +58,10 @@ func NewMCPServerWithTransport(transport transport.Transport) (*MCPServer, error
 	return server, nil
 }
 
-// StartMCPServerWithHttp starts the MCP server with HTTP transport using the metoro-io/mcp-golang library
-func StartMCPServerWithHttp(httpAddr string) error {
-	// Create an HTTP transport
-	transport := http.NewHTTPTransport("/mcp").WithAddr(httpAddr)
+// StartMCPServerWithStdio starts the MCP server with stdio transport using the metoro-io/mcp-golang library
+func StartMCPServerWithStdio() error {
+	// Create a stdio transport
+	transport := stdio.NewStdioServerTransport()
 
 	// Create and configure the server
 	server, err := NewMCPServerWithTransport(transport)
@@ -70,7 +70,7 @@ func StartMCPServerWithHttp(httpAddr string) error {
 	}
 
 	// Start the server
-	fmt.Printf("Starting MCP server with HTTP transport on %s\n", httpAddr)
+	fmt.Printf("Starting MCP server with stdio transport\n")
 	return server.Serve()
 }
 

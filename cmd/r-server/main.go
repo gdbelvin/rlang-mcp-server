@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 
 	"r-server/internal/mcp"
-	"github.com/metoro-io/mcp-golang/transport/http"
+
+	"github.com/metoro-io/mcp-golang/transport/stdio"
 )
 
 func main() {
 	// Parse command-line flags
-	port := flag.Int("port", 22011, "Port number for the MCP server")
 	testTool := flag.String("test-tool", "", "Path to a JSON file containing a tool request for testing")
 	flag.Parse()
 
@@ -32,18 +32,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create HTTP transport
-	httpTransport := http.NewHTTPTransport("/mcp").WithAddr(fmt.Sprintf(":%d", *port))
+	// Create stdio transport
+	stdioTransport := stdio.NewStdioServerTransport()
 
 	// Create and configure the server
-	server, err := mcp.NewMCPServer(httpTransport)
+	server, err := mcp.NewMCPServer(stdioTransport)
 	if err != nil {
 		fmt.Printf("Error creating MCP server: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Start the server
-	fmt.Printf("Starting MCP server on port %d\n", *port)
+	fmt.Printf("Starting MCP server with stdio transport\n")
 	if err := server.Serve(); err != nil {
 		fmt.Printf("Error starting MCP server: %v\n", err)
 		os.Exit(1)

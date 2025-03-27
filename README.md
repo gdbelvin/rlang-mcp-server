@@ -47,12 +47,37 @@ task docker:run
 
 ### Starting the Server
 
-```bash
-# Start the server on the default port (22011)
-./r-server
+The server can be started in two modes: stdio transport (recommended) or HTTP transport.
 
-# Start the server on a custom port
-./r-server --port 8080
+#### Stdio Transport
+
+```bash
+# Start the server with stdio transport
+./r-server
+```
+
+Using stdio transport is recommended as it avoids potential deadlock issues that can occur with HTTP transport. The server reads from stdin and writes to stdout, making it suitable for use with named pipes or direct process communication.
+
+#### Using Named Pipes
+
+You can use named pipes to connect the server with a client:
+
+```bash
+# Create named pipes
+mkfifo server_in server_out
+
+# Start the server in the background
+./r-server < server_in > server_out &
+
+# Start the client (in another terminal or script)
+./client < server_out > server_in
+```
+
+A test script is provided to demonstrate this setup:
+
+```bash
+# Run the test script
+./test_stdio_transport.sh
 ```
 
 ### MCP Integration
@@ -70,6 +95,8 @@ To use this server with an MCP client, configure it in your MCP settings file:
   }
 }
 ```
+
+The MCP client will automatically communicate with the server using stdio transport, which is the recommended approach for stability and reliability.
 
 ### Using the render_ggplot Tool
 
