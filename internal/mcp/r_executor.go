@@ -90,6 +90,14 @@ func ExecuteRScript(config RExecutionConfig) ([]byte, error) {
 
 // GetMimeType returns the MIME type for the given output format
 func GetMimeType(outputFormat string) string {
+
+	/* Claude supported image types:
+	image/jpeg
+	image/png
+	image/gif
+	image/webp
+	*/
+
 	switch outputFormat {
 	case "png":
 		return "image/png"
