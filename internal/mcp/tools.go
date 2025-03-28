@@ -17,7 +17,7 @@ type GGPlotRenderArgs struct {
 	Resolution int    `json:"resolution" jsonschema:"description=Resolution of the output image in dpi"`
 }
 
-// RenderGGPlot renders a ggplot2 visualization
+// RenderGGPlot renders a ggplot2 visualization and returns the image directly in the response
 func RenderGGPlot(args GGPlotRenderArgs) (*mcp.ToolResponse, error) {
 	// Validate arguments
 	if args.Code == "" {

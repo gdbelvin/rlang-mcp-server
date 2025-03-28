@@ -5,7 +5,7 @@ echo "Building R-Server Go implementation..."
 
 # Build the application
 echo "Building application..."
-go build -o r-server
+go build -o r-server ./cmd/r-server
 
 echo "Build complete. You can run the server with:"
 echo "./r-server"
