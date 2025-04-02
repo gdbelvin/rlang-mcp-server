@@ -5,8 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: r-server-mcp
-    volumes:
-      # Mount the rmd directory to allow the MCP server to access R Markdown files
-      - ${RMD_DIR:-./rmd}:/app/rmd
-    ports:
-      - "22011:22011"
+    stdin_open: true  # docker run -i
+    tty: true         # docker run -t
+    # No command override needed as the ENTRYPOINT in Dockerfile will be used
+    # No ports needed as we're using stdin/stdout for communication

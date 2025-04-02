@@ -3,10 +3,6 @@ set -e
 
 echo "Setting up containerized MCP server..."
 
-# Build and start the containers
-echo "Building and starting containers..."
-docker-compose up -d 
-
 # Create the updated MCP settings
 echo "Creating updated MCP settings..."
 cat << EOF
@@ -14,17 +10,21 @@ cat << EOF
   "mcpServers": {
     "r-server": {
       "command": "docker-compose",
-      "args": ["-f", "/Users/gdb/dev/r-server/docker-compose.yml", "up", "-d"]
+      "args": ["-f", "/Users/gdb/dev/r-server/docker-compose.yml", "up", "-d"],
       "disabled": false,
-      "autoApprove": [],
-      "transport": {
-        "type": "http",
-        "url": "http://localhost:22011/mcp"
-      }
+      "autoApprove": ["render_ggplot"]
     }
   }
 }
 EOF
+
+~/Library/Application Support/Claude/claude_desktop_config.json
+    "r-server": {
+      "command": "/Users/gdb/dev/Cline/MCP/r-server/start_server.sh",
+      "args": [],
+      "disabled": false,
+      "autoApprove": ["render_ggplot"]
+    },
 
 echo ""
 echo "To use the containerized MCP server, update your MCP settings with the configuration above."

@@ -81,8 +81,21 @@ tasks:
     desc: Run the server in Docker
     deps: [docker:build]
     cmds:
-      - echo "Running Docker container..."
-      - docker run -p 22011:22011 {{.DOCKER_IMAGE}}
+      - echo "Running Docker container with stdin/stdout..."
+      - USE_DOCKER=true ./start_server.sh
+
+  docker:compose:build:
+    desc: Build Docker image using docker-compose
+    cmds:
+      - echo "Building Docker image using docker-compose..."
+      - docker-compose build
+
+  docker:compose:run:
+    desc: Run the server using docker-compose with stdin/stdout
+    deps: [docker:compose:build]
+    cmds:
+      - echo "Running Docker container using docker-compose with stdin/stdout..."
+      - ./start_server.sh --docker
 
   clean:
     desc: Clean up build artifacts
@@ -98,6 +111,7 @@ tasks:
       - task: test
       - task: coverage
       - task: docker:build
+      - task: docker:compose:build
 
   # MCP-specific tasks
   mcp:test-tool:

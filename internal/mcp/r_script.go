@@ -39,9 +39,15 @@ sink("%s")
 # Execute the provided code
 %s
 
+# Make sure the output file is created
+cat("Output file path: %s\n")
+
 # Close the output file
 sink()
-`, outputPath, args.Code)
+
+# Write directly to the output file as a fallback
+cat("R script execution completed successfully!\n", file="%s", append=TRUE)
+`, outputPath, args.Code, outputPath, outputPath)
 
 	// Write the R script to a file
 	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0644); err != nil {
@@ -55,15 +61,10 @@ sink()
 	}
 
 	// Execute the R script using the existing ExecuteRScript function
-	_, err = ExecuteRScript(config)
+	// This will return the output data directly
+	outputData, err := ExecuteRScript(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute R script: %w", err)
-	}
-
-	// Read the output file
-	outputData, err := os.ReadFile(outputPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read output file: %w", err)
 	}
 
 	// Create the text content

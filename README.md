@@ -43,6 +43,23 @@ task docker:build
 task docker:run
 ```
 
+### Using Docker with stdin/stdout
+
+The server can be run in Docker while preserving stdin/stdout communication, which is essential for MCP:
+
+```bash
+# Build and run using docker-compose
+./start_server.sh --docker
+```
+
+Or set an environment variable:
+
+```bash
+USE_DOCKER=true ./start_server.sh
+```
+
+This approach ensures that stdin and stdout are properly connected between the host and the container, allowing seamless MCP communication.
+
 ## Usage
 
 ### Starting the Server
@@ -84,6 +101,8 @@ A test script is provided to demonstrate this setup:
 
 To use this server with an MCP client, configure it in your MCP settings file:
 
+#### Local Execution
+
 ```json
 {
   "mcpServers": {
@@ -96,7 +115,39 @@ To use this server with an MCP client, configure it in your MCP settings file:
 }
 ```
 
-The MCP client will automatically communicate with the server using stdio transport, which is the recommended approach for stability and reliability.
+#### Docker Execution
+
+```json
+{
+  "mcpServers": {
+    "r-server": {
+      "command": "/path/to/start_server.sh",
+      "args": ["--docker"],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+Or using environment variables:
+
+```json
+{
+  "mcpServers": {
+    "r-server": {
+      "command": "/path/to/start_server.sh",
+      "env": {
+        "USE_DOCKER": "true"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+The MCP client will automatically communicate with the server using stdio transport, which is the recommended approach for stability and reliability. The dockerized version maintains this communication pattern while providing isolation and dependency management.
 
 ### Using the render_ggplot Tool
 
