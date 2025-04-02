@@ -8,7 +8,7 @@ cat << EOF
   "mcpServers": {
     "r-server": {
       "command": "docker-compose",
-      "args": ["-f", "/Users/abc/MCP/r-server/docker-compose.yml", "run", "--rm", "r-server-mcp"],
+      "args": ["-f", "/path/to/r-server/docker-compose.yml", "run", "--rm", "r-server-mcp"],
       "disabled": false,
       "autoApprove": ["render_ggplot"]
     }

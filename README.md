@@ -1,14 +1,17 @@
-# R-Server MCP for ggplot
+# R-Server MCP
 
-A specialized Model Context Protocol (MCP) server that enables AI models to generate data visualizations using R's ggplot2 library.
+A specialized Model Context Protocol (MCP) server that enables AI models to generate data visualizations using R's ggplot2 library and execute R scripts.
 
 ## Overview
 
-This MCP server provides a streamlined interface for creating statistical visualizations without requiring direct access to an R environment. It exposes a single MCP tool (`render_ggplot`) that generates visualizations from R code containing ggplot2 commands.
+This MCP server provides a streamlined interface for creating statistical visualizations and executing R scripts without requiring direct access to an R environment. It exposes two MCP tools:
+- `render_ggplot`: Generates visualizations from R code containing ggplot2 commands
+- `execute_r_script`: Executes any R script and returns the text output
 
 ## Features
 
 - **ggplot2 Rendering**: Execute R code containing ggplot2 commands and return the resulting visualization
+- **R Script Execution**: Execute any R script and return the text output
 - **Format Options**: Support for PNG, JPEG, PDF, and SVG output formats
 - **Customization**: Control image dimensions and resolution
 - **Error Handling**: Clear error messages for invalid R code or rendering failures
