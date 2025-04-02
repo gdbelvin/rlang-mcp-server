@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-echo "Setting up containerized MCP server..."
-
 # Create the updated MCP settings
 echo "Creating updated MCP settings..."
 cat << EOF
@@ -10,21 +8,13 @@ cat << EOF
   "mcpServers": {
     "r-server": {
       "command": "docker-compose",
-      "args": ["-f", "/Users/gdb/dev/r-server/docker-compose.yml", "up", "-d"],
+      "args": ["-f", "/Users/abc/MCP/r-server/docker-compose.yml", "run", "--rm", "r-server-mcp"],
       "disabled": false,
       "autoApprove": ["render_ggplot"]
     }
   }
 }
 EOF
-
-~/Library/Application Support/Claude/claude_desktop_config.json
-    "r-server": {
-      "command": "/Users/gdb/dev/Cline/MCP/r-server/start_server.sh",
-      "args": [],
-      "disabled": false,
-      "autoApprove": ["render_ggplot"]
-    },
 
 echo ""
 echo "To use the containerized MCP server, update your MCP settings with the configuration above."
@@ -35,8 +25,3 @@ echo ""
 echo "For Claude desktop app, update:"
 echo "~/Library/Application Support/Claude/claude_desktop_config.json"
 echo ""
-echo "The containerized MCP server is now running:"
-docker ps --filter name=r-server
-echo ""
-echo "You can stop it with:"
-echo "docker-compose down"

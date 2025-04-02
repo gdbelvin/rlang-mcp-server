@@ -22,16 +22,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Install tidyverse
+RUN R -q -e "install.packages('tidyverse', repos='https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
 # Install required R packages
-#RUN R -q -e "install.packages(c('tidyverse'), repos='https://cran.rstudio.com/', Ncpus=4)"
-RUN R -q -e "options(warn=2); install.packages('ggplot2', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01')"
-RUN R -q -e "options(warn=2); install.packages('cowplot', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01')"
-# Install common R packages
-#RUN R -q -e "install.packages(c('data.table', 'lubridate', 'scales', 'reshape2', 'magrittr'), repos='https://cran.rstudio.com/')"
-# Install Rmarkdown packages
-#RUN R -q -e "install.packages(c('quarto', 'knitr', 'rmarkdown'), repos='https://cran.rstudio.com/')"
-# Install AI packages
-#RUN R -q -e "install.packages(c('caret', 'randomForest'), repos='https://cran.rstudio.com/')"
+RUN R -q -e "install.packages('cowplot',   repos='https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
+
+# Inst-q all RMarkdown packages 
+RUN R -q -e "install.packages('quarto', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
+RUN R -q -e "install.packages('knitr', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
+RUN R -q -e "install.packages('rmarkdown', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
 
 # Create a non-root user
 RUN useradd -m -s /bin/bash -u 1000 rserver
