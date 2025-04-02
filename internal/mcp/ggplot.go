@@ -73,6 +73,7 @@ width <- %d
 height <- %d
 dpi <- %d
 output_file <- "%s"
+pdf(NULL)
 
 # Execute the provided code
 %s

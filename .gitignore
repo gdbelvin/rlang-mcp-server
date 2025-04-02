@@ -4,4 +4,4 @@ build/
 .env*
 client
 server
-Rplots
+Rplots.pdf
