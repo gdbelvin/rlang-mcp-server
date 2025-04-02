@@ -26,18 +26,6 @@ This MCP server provides a streamlined interface for creating statistical visual
 
 ## Building
 
-### Local Build
-
-```bash
-# Build the server
-task build
-
-# Run tests
-task test
-```
-
-### Docker Build
-
 ```bash
 # Build the Docker image
 task docker:build
@@ -64,41 +52,6 @@ USE_DOCKER=true ./start_server.sh
 This approach ensures that stdin and stdout are properly connected between the host and the container, allowing seamless MCP communication.
 
 ## Usage
-
-### Starting the Server
-
-The server can be started in two modes: stdio transport (recommended) or HTTP transport.
-
-#### Stdio Transport
-
-```bash
-# Start the server with stdio transport
-./r-server
-```
-
-Using stdio transport is recommended as it avoids potential deadlock issues that can occur with HTTP transport. The server reads from stdin and writes to stdout, making it suitable for use with named pipes or direct process communication.
-
-#### Using Named Pipes
-
-You can use named pipes to connect the server with a client:
-
-```bash
-# Create named pipes
-mkfifo server_in server_out
-
-# Start the server in the background
-./r-server < server_in > server_out &
-
-# Start the client (in another terminal or script)
-./client < server_out > server_in
-```
-
-A test script is provided to demonstrate this setup:
-
-```bash
-# Run the test script
-./test_stdio_transport.sh
-```
 
 ### MCP Integration
 
@@ -133,131 +86,8 @@ To use this server with an MCP client, configure it in your MCP settings file:
 }
 ```
 
-Or using environment variables:
-
-```json
-{
-  "mcpServers": {
-    "r-server": {
-      "command": "/path/to/start_server.sh",
-      "env": {
-        "USE_DOCKER": "true"
-      },
-      "disabled": false,
-      "autoApprove": []
-    }
-  }
-}
-```
-
 The MCP client will automatically communicate with the server using stdio transport, which is the recommended approach for stability and reliability. The dockerized version maintains this communication pattern while providing isolation and dependency management.
 
-### Using the render_ggplot Tool
-
-The `render_ggplot` tool accepts the following parameters:
-
-- `code` (required): R code containing ggplot2 commands
-- `output_type`: Output format (png, jpeg, pdf, svg), default: png
-- `width`: Width of the output image in pixels, default: 800
-- `height`: Height of the output image in pixels, default: 600
-- `resolution`: Resolution of the output image in dpi, default: 96
-
-Example request:
-
-```json
-{
-  "name": "render_ggplot",
-  "arguments": {
-    "code": "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + theme_minimal() + labs(title = 'MPG vs Horsepower')",
-    "output_type": "png",
-    "width": 800,
-    "height": 600,
-    "resolution": 96
-  }
-}
-```
-
-## Development
-
-### Project Structure
-
-```
-r-server/
-├── cmd/
-│   └── r-server/         # Main application entry point
-├── docs/                 # Documentation
-├── internal/
-│   ├── mcp/              # MCP server implementation
-│   ├── r/                # R code execution
-│   └── image/            # Image processing
-├── test/
-│   ├── integration/      # Integration tests
-│   ├── protocol/         # Protocol conformance tests
-│   └── testdata/         # Test data
-├── tools/
-│   └── mcp-validator/    # MCP protocol validator
-├── Dockerfile            # Docker configuration
-├── Taskfile.yml          # Task runner configuration
-└── README.md             # This file
-```
-
-### Task Runner
-
-This project uses [Task](https://taskfile.dev/) for automation. Available tasks:
-
-```bash
-# List all available tasks
-task
-
-# Build the server
-task build
-
-# Run tests
-task test
-
-# Run integration tests
-task test:integration
-
-# Run protocol conformance tests
-task test:protocol
-
-# Generate test coverage report
-task coverage
-
-# Lint the code
-task lint
-
-# Run the full CI pipeline
-task ci
-```
-
-### Testing
-
-The project includes several types of tests:
-
-- **Unit Tests**: Test individual components in isolation
-- **Integration Tests**: Test components working together
-- **Protocol Conformance Tests**: Test MCP protocol implementation
-- **Performance Tests**: Measure performance characteristics
-
-To run the tests:
-
-```bash
-# Run all tests
-task test
-
-# Run unit tests
-task test:unit
-
-# Run integration tests
-task test:integration
-
-# Run protocol conformance tests
-task test:protocol
-
-# Generate coverage report
-task coverage
-```
 
 ## License
 
