@@ -18,23 +18,34 @@ This document provides a comprehensive reference for the Model Context Protocol 
       - [R Markdown Files](#r-markdown-files)
       - [Rendered Outputs](#rendered-outputs)
   - [MCP Tools](#mcp-tools)
-    - [create\_rmd](#create_rmd)
+    - [render\_ggplot](#render_ggplot)
       - [Input Schema](#input-schema)
       - [Example Input](#example-input)
       - [Response](#response)
       - [Implementation Details](#implementation-details)
-    - [render\_rmd](#render_rmd)
+    - [execute\_r\_script](#execute_r_script)
       - [Input Schema](#input-schema-1)
       - [Example Input](#example-input-1)
       - [Response](#response-1)
       - [Implementation Details](#implementation-details-1)
-  - [Implementation Details](#implementation-details-2)
+    - [create\_rmd](#create_rmd)
+      - [Input Schema](#input-schema-2)
+      - [Example Input](#example-input-2)
+      - [Response](#response-2)
+      - [Implementation Details](#implementation-details-2)
+    - [render\_rmd](#render_rmd)
+      - [Input Schema](#input-schema-3)
+      - [Example Input](#example-input-3)
+      - [Response](#response-3)
+      - [Implementation Details](#implementation-details-3)
+  - [Implementation Details](#implementation-details-4)
     - [Server Architecture](#server-architecture)
       - [MCP Protocol Implementation Details](#mcp-protocol-implementation-details)
     - [Docker Integration](#docker-integration)
       - [Docker API (Dockerode)](#docker-api-dockerode)
       - [Docker Compose](#docker-compose)
   - [Usage Examples](#usage-examples)
+    - [Executing an R Script](#executing-an-r-script)
     - [Creating and Rendering an R Markdown File](#creating-and-rendering-an-r-markdown-file)
     - [Using Docker Compose for Rendering](#using-docker-compose-for-rendering)
   - [Error Handling](#error-handling)
@@ -219,6 +230,109 @@ Each rendered output file is exposed as a resource with:
 
 R-Server provides the following tools through the MCP interface:
 
+### render_ggplot
+
+Renders a ggplot2 visualization.
+
+#### Input Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "R code containing ggplot commands"
+    },
+    "output_type": {
+      "type": "string",
+      "description": "Output format (png, jpeg, pdf, svg)",
+      "default": "png"
+    },
+    "width": {
+      "type": "integer",
+      "description": "Width of the output image in pixels",
+      "default": 800
+    },
+    "height": {
+      "type": "integer",
+      "description": "Height of the output image in pixels",
+      "default": 600
+    },
+    "resolution": {
+      "type": "integer",
+      "description": "Resolution of the output image in dpi",
+      "default": 96
+    }
+  },
+  "required": ["code"]
+}
+```
+
+#### Example Input
+
+```json
+{
+  "code": "ggplot(mtcars, aes(x = wt, y = mpg)) + geom_point() + theme_minimal()",
+  "output_type": "png",
+  "width": 800,
+  "height": 600,
+  "resolution": 96
+}
+```
+
+#### Response
+
+An image of the rendered ggplot visualization.
+
+#### Implementation Details
+
+- The R code must include ggplot2 commands
+- The output format can be:
+  - PNG (default)
+  - JPEG
+  - PDF
+  - SVG
+- The width, height, and resolution parameters control the size and quality of the output image
+
+### execute_r_script
+
+Executes an R script and returns the result as text.
+
+#### Input Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "R code to execute"
+    }
+  },
+  "required": ["code"]
+}
+```
+
+#### Example Input
+
+```json
+{
+  "code": "data <- data.frame(x = 1:10, y = (1:10)^2)\nsummary(data)\ncor(data$x, data$y)"
+}
+```
+
+#### Response
+
+The text output of the executed R script.
+
+#### Implementation Details
+
+- The R code can include any valid R commands
+- The output is captured and returned as text
+- The R environment includes common packages like ggplot2, dplyr, etc.
+- The execution is performed in a temporary directory that is cleaned up after execution
+
 ### create_rmd
 
 Creates a new R Markdown file.
@@ -339,7 +453,7 @@ R-Server is implemented in Go and follows a modular architecture:
 
 - **MCPServer**: The main server class that implements the MCP protocol
 - **Resource Handling**: Lists and reads R Markdown files and rendered outputs
-- **Tool Handling**: Implements the `create_rmd` and `render_rmd` tools
+- **Tool Handling**: Implements the `render_ggplot` and `execute_r_script` tools
 - **Docker Integration**: Uses Docker to render R Markdown files
 
 #### MCP Protocol Implementation Details
@@ -367,13 +481,13 @@ For example, when a `listResources` request is received:
 3. It constructs resource objects for each file with appropriate URIs, MIME types, names, and descriptions
 4. It returns these resources in the response
 
-Similarly, when a `callTool` request for `render_rmd` is received:
+Similarly, when a `callTool` request for `execute_r_script` is received:
 
-1. The server calls `MCPServer.CallTool("render_rmd", args)`
-2. This method validates the arguments and ensures the R Markdown file exists
-3. It builds the Docker image if needed
-4. It calls either `RenderWithDockerode` or `RenderWithDockerCompose` based on the `use_docker_compose` argument
-5. It returns a success message with the name of the rendered output file
+1. The server calls `MCPServer.CallTool("execute_r_script", args)`
+2. This method validates the arguments and ensures the R code is provided
+3. It creates a temporary directory for the R script and output
+4. It executes the R script and captures the output
+5. It returns the output as text content
 
 ### Docker Integration
 
@@ -399,6 +513,21 @@ Both methods use the same Docker image, which includes:
 - A custom entrypoint script that handles rendering
 
 ## Usage Examples
+
+### Executing an R Script
+
+To execute an R script and get the result:
+
+```json
+{
+  "name": "execute_r_script",
+  "arguments": {
+    "code": "# Create a data frame\ndata <- data.frame(x = 1:10, y = (1:10)^2)\n\n# Calculate summary statistics\nsummary_stats <- summary(data)\n\n# Print the summary statistics\nprint(summary_stats)\n\n# Calculate correlation\ncorrelation <- cor(data$x, data$y)\ncat(\"Correlation between x and y:\", correlation, \"\\n\")\n\n# Create a linear model\nmodel <- lm(y ~ x, data = data)\ncat(\"\\nLinear model summary:\\n\")\nprint(summary(model))"
+  }
+}
+```
+
+This will execute the R script and return the output as text.
 
 ### Creating and Rendering an R Markdown File
 
@@ -462,6 +591,7 @@ The R-Server MCP implementation includes comprehensive error handling to provide
 | Resource not found | NotFound | The requested R Markdown file or rendered output does not exist |
 | Invalid tool name | MethodNotFound | The requested tool is not supported by the server |
 | Missing required arguments | InvalidParams | Required arguments for a tool are missing or invalid |
+| R script execution failure | InternalError | The R script execution process failed |
 | Rendering failure | InternalError | The R Markdown rendering process failed |
 | Docker error | InternalError | An error occurred while interacting with Docker |
 
@@ -489,10 +619,17 @@ The R-Server implements error handling through:
 3. **Docker Error Handling**: Captures and reports errors from Docker operations
 4. **Detailed Error Messages**: Provides specific error messages to help diagnose issues
 
-For example, when rendering an R Markdown file:
+For example, when executing an R script:
 
-1. The server checks that the filename is provided
-2. It verifies that the file exists in the `rmd` directory
-3. It validates that the output format is supported
-4. It captures any errors during the Docker rendering process
-5. It returns a detailed error message if any step fails
+1. The server checks that the R code is provided
+2. It creates a temporary directory for the script and output
+3. It executes the R script and captures any errors
+4. It returns a detailed error message if the execution fails
+
+Similarly, when rendering a ggplot visualization:
+
+1. The server checks that the R code is provided
+2. It validates the output format, width, height, and resolution parameters
+3. It executes the R script to generate the visualization
+4. It captures any errors during the rendering process
+5. It returns a detailed error message if the rendering fails

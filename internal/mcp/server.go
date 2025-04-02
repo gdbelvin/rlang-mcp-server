@@ -26,6 +26,11 @@ func NewMCPServer(transport transport.Transport) (*MCPServer, error) {
 		return nil, fmt.Errorf("failed to register render_ggplot tool: %w", err)
 	}
 
+	// Register the execute_r_script tool
+	if err := server.RegisterTool("execute_r_script", "Execute an R script and return the result", ExecuteRScriptTool); err != nil {
+		return nil, fmt.Errorf("failed to register execute_r_script tool: %w", err)
+	}
+
 	return server, nil
 }
 

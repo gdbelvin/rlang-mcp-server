@@ -40,12 +40,12 @@ func (e *DefaultRExecutor) ExecuteRScript(config RExecutionConfig) ([]byte, erro
 		if err := os.Remove(config.ScriptPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to remove script file: %v\n", err)
 		}
-		
+
 		// Remove the output file
 		if err := os.Remove(config.OutputPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to remove output file: %v\n", err)
 		}
-		
+
 		// Remove the output directory if it's empty
 		if files, err := os.ReadDir(outputDir); err == nil && len(files) == 0 {
 			if err := os.Remove(outputDir); err != nil {
@@ -56,7 +56,7 @@ func (e *DefaultRExecutor) ExecuteRScript(config RExecutionConfig) ([]byte, erro
 
 	// Execute the R script
 	cmd := exec.Command("Rscript", config.ScriptPath)
-	
+
 	// Set environment variables for the R script
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("OUTPUT_PATH=%s", config.OutputPath),
