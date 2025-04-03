@@ -18,7 +18,7 @@ type MCPServer struct {
 func NewMCPServer(transport transport.Transport) (*MCPServer, error) {
 	// Create a new MCP server with name and version
 	server := &MCPServer{
-		Server: mcp.NewServer(transport, mcp.WithName("r-server"), mcp.WithVersion("1.1.1")),
+		Server: mcp.NewServer(transport, mcp.WithName("r-server"), mcp.WithVersion("1.1.4")),
 	}
 
 	// Register the render_ggplot tool

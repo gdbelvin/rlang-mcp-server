@@ -31,6 +31,9 @@ RUN R -q -e "install.packages('cowplot',   repos='https://packagemanager.rstudio
 RUN R -q -e "install.packages('quarto', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
 RUN R -q -e "install.packages('knitr', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
 RUN R -q -e "install.packages('rmarkdown', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
+RUN R -q -e "install.packages('igraph', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
+RUN R -q -e "install.packages('DiagrammeR', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
+RUN R -q -e "install.packages('triangle', repos = 'https://packagemanager.rstudio.com/cran/2024-03-01', Ncpus=3)"
 
 # Create a non-root user
 RUN useradd -m -s /bin/bash -u 1000 rserver
