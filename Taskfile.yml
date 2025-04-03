@@ -9,13 +9,15 @@ vars:
     sh: find . -type f -name "*.go" | grep -v "_test.go$"
 
 tasks:
-  default:
-    desc: List all available tasks
+  benchmark:
+    desc: Run benchmarks
     cmds:
-      - task --list
+      - echo "Running benchmarks..."
+      - go test -bench=. -benchmem ./...
 
   build:
     desc: Build the MCP server binary
+    deps: [version:increment]
     cmds:
       - echo "Building {{.BINARY_NAME}}..."
       - go build -o {{.BINARY_NAME}} ./cmd/r-server
@@ -24,35 +26,56 @@ tasks:
     generates:
       - "{{.BINARY_NAME}}"
 
-  run:
-    desc: Run the MCP server
-    deps: [build]
+  build:docker:
+    desc: Build Docker image using docker-compose
+    deps: [version:increment]
     cmds:
-      - ./{{.BINARY_NAME}}
+      - echo "Building Docker image using docker-compose..."
+      - docker-compose build
+    sources:
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - "{{.BINARY_NAME}}"
+      - "{{.GO_FILES}}"
 
-  test:
-    desc: Run all tests
+  version:increment:
+    desc: Increment the fix version number in server.go
+    sources:
+      - "{{.GO_FILES}}"
+      - "Dockerfile"
+      - "docker-compose.yml"
     cmds:
-      - echo "Running tests..."
-      - go test -v ./...
+      - |
+        # Extract current version
+        CURRENT_VERSION=$(grep -o 'WithVersion("[^"]*")' internal/mcp/server.go | sed 's/WithVersion("\(.*\)")/\1/')
+        echo "Current version: $CURRENT_VERSION"
+        
+        # Split version into major.minor.fix
+        IFS='.' read -r MAJOR MINOR FIX <<< "$CURRENT_VERSION"
+        
+        # Increment fix version
+        NEW_FIX=$((FIX + 1))
+        NEW_VERSION="$MAJOR.$MINOR.$NEW_FIX"
+        echo "New version: $NEW_VERSION"
+        
+        # Update version in server.go
+        sed -i '' "s/WithVersion(\"$CURRENT_VERSION\")/WithVersion(\"$NEW_VERSION\")/" internal/mcp/server.go
+        echo "Updated version in server.go to $NEW_VERSION"
 
-  test:unit:
-    desc: Run unit tests
+  ci:
+    desc: Run the full CI pipeline
     cmds:
-      - echo "Running unit tests..."
-      - go test -v -short ./...
+      - task: lint
+      - task: test
+      - task: coverage
+      - task: build:docker
 
-  test:integration:
-    desc: Run integration tests
+  clean:
+    desc: Clean up build artifacts
     cmds:
-      - echo "Running integration tests..."
-      - go test -v -tags=integration ./...
-
-  test:protocol:
-    desc: Run MCP protocol conformance tests
-    cmds:
-      - echo "Running MCP protocol tests..."
-      - go test -v -tags=protocol ./...
+      - echo "Cleaning up..."
+      - rm -f {{.BINARY_NAME}} {{.COVERAGE_FILE}} {{.COVERAGE_HTML}}
+      - rm -rf ./test/testdata/output/*
 
   coverage:
     desc: Generate test coverage report
@@ -65,53 +88,16 @@ tasks:
       - "{{.COVERAGE_FILE}}"
       - "{{.COVERAGE_HTML}}"
 
+  default:
+    desc: List all available tasks
+    cmds:
+      - task --list
+
   lint:
     desc: Lint the code
     cmds:
       - echo "Linting code..."
       - golangci-lint run
-
-  docker:build:
-    desc: Build Docker image
-    cmds:
-      - echo "Building Docker image {{.DOCKER_IMAGE}}..."
-      - docker build -t {{.DOCKER_IMAGE}} .
-
-  docker:run:
-    desc: Run the server in Docker
-    deps: [docker:build]
-    cmds:
-      - echo "Running Docker container with stdin/stdout..."
-      - USE_DOCKER=true ./start_server.sh
-
-  docker:compose:build:
-    desc: Build Docker image using docker-compose
-    cmds:
-      - echo "Building Docker image using docker-compose..."
-      - docker-compose build
-
-  docker:compose:run:
-    desc: Run the server using docker-compose with stdin/stdout
-    deps: [docker:compose:build]
-    cmds:
-      - echo "Running Docker container using docker-compose with stdin/stdout..."
-      - ./start_server.sh --docker
-
-  clean:
-    desc: Clean up build artifacts
-    cmds:
-      - echo "Cleaning up..."
-      - rm -f {{.BINARY_NAME}} {{.COVERAGE_FILE}} {{.COVERAGE_HTML}}
-      - rm -rf ./test/testdata/output/*
-
-  ci:
-    desc: Run the full CI pipeline
-    cmds:
-      - task: lint
-      - task: test
-      - task: coverage
-      - task: docker:build
-      - task: docker:compose:build
 
   # MCP-specific tasks
   mcp:test-tool:
@@ -141,8 +127,39 @@ tasks:
       - echo "Validating MCP protocol conformance..."
       - go run ./tools/mcp-validator
 
-  benchmark:
-    desc: Run benchmarks
+  run:
+    desc: Run the MCP server
+    deps: [build]
     cmds:
-      - echo "Running benchmarks..."
-      - go test -bench=. -benchmem ./...
+      - ./{{.BINARY_NAME}}
+
+  run:docker:
+    desc: Run the server using docker-compose with stdin/stdout
+    deps: [build:docker]
+    cmds:
+      - echo "Running Docker container using docker-compose with stdin/stdout..."
+      - ./start_server.sh --docker
+
+  test:
+    desc: Run all tests
+    cmds:
+      - echo "Running tests..."
+      - go test -v ./...
+
+  test:integration:
+    desc: Run integration tests
+    cmds:
+      - echo "Running integration tests..."
+      - go test -v -tags=integration ./...
+
+  test:protocol:
+    desc: Run MCP protocol conformance tests
+    cmds:
+      - echo "Running MCP protocol tests..."
+      - go test -v -tags=protocol ./...
+
+  test:unit:
+    desc: Run unit tests
+    cmds:
+      - echo "Running unit tests..."
+      - go test -v -short ./...
